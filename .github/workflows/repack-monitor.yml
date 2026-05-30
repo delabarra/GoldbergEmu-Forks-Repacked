@@ -1,0 +1,96 @@
+name: Repack Monitor
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_repack:
+        description: Rebuild all repacks from latest upstream and publish a release
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  check-for-updates:
+    name: Update check
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Check upstream releases
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_REPACK: ${{ github.event_name == 'workflow_dispatch' && inputs.force_repack || 'false' }}
+        run: |
+          python scripts/monitor_and_repack.py check
+
+  repack:
+    name: Repack
+    needs: check-for-updates
+    if: needs.check-for-updates.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install 7z
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full
+
+      - name: Build repacks
+        id: repack
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE_REPACK: ${{ github.event_name == 'workflow_dispatch' && inputs.force_repack || 'false' }}
+        run: |
+          python scripts/monitor_and_repack.py repack
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.repack.outputs.release_tag }}
+          name: ${{ steps.repack.outputs.release_name }}
+          body: ${{ steps.repack.outputs.release_body }}
+          generate_release_notes: false
+          files: |
+            ${{ steps.repack.outputs.asset_one_path }}
+            ${{ steps.repack.outputs.asset_two_path }}
+            ${{ steps.repack.outputs.asset_three_path }}
+
+  skipped:
+    name: Skipped
+    needs: check-for-updates
+    if: needs.check-for-updates.outputs.should_release != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Skipped
+        run: |
+          echo "No upstream updates detected; skipping repack and release."
+          {
+            echo "## Skipped"
+            echo ""
+            echo "- Reason: no Detanup01/alex47exe upstream updates"
+            echo ""
+            echo "To rebuild anyway, run this workflow manually with **force_repack** enabled."
+          } >> "$GITHUB_STEP_SUMMARY"

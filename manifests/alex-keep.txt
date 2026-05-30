@@ -1,0 +1,17 @@
+# Relative paths to keep from alex47exe emu-win-release.7z
+# One path per line. Use / separators.
+# Omits ColdClientLoader (ColdClientLoader.ini, steamclient_loader_*.exe).
+
+release/CHANGELOG.md
+release/CREDITS.md
+release/README.release.md
+release/experimental/
+release/regular/
+release/steam_old_lib/
+release/steam_settings.EXAMPLE/
+release/tools/
+release/steamclient_experimental/GameOverlayRenderer.dll
+release/steamclient_experimental/GameOverlayRenderer64.dll
+release/steamclient_experimental/README.experimental_steamclient.md
+release/steamclient_experimental/steamclient.dll
+release/steamclient_experimental/steamclient64.dll

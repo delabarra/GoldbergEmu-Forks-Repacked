@@ -1,0 +1,5 @@
+# ColdClientLoader bundle from Detanup01 emu-win-release.7z only.
+# One path per line. Use / separators.
+# Optional download — may trigger antivirus heuristics.
+
+release/steamclient_experimental/
