@@ -207,7 +207,6 @@ def format_fork_section(
     key: str,
     info: dict,
     rebuilt: bool,
-    asset_lines: list[str],
 ) -> str:
     label = UPSTREAM_LABELS.get(key, key)
     repo = info["repo"]
@@ -230,42 +229,31 @@ def format_fork_section(
             f"_Unchanged in this repack — bundled from "
             f"[{label} `{tag}`]({url}). See that release for upstream notes._"
         )
-    if asset_lines:
-        lines.extend(["", "**Download (this fork only):**", *asset_lines])
     return "\n".join(lines)
 
 
 def build_release_body(
     upstream_info: dict[str, dict],
-    planned_assets: dict[str, Path],
     changed: dict[str, bool],
 ) -> str:
     detanup_section = format_fork_section(
         "detanup",
         upstream_info["detanup"],
         changed["detanup"],
-        [
-            f"- `{planned_assets['detanup'].name}`",
-            f"- `{planned_assets['coldclientloader'].name}` — ColdClientLoader (optional; split from main archive)",
-        ],
     )
     alex_section = format_fork_section(
         "alex",
         upstream_info["alex"],
         changed["alex"],
-        [f"- `{planned_assets['alex'].name}`"],
     )
 
     meta_lines = [
-        "<details>",
-        "<summary>Source metadata (automation)</summary>",
-        "",
+        "<!--",
         f"{SOURCE_META_KEYS['detanup'][0]}: {upstream_info['detanup']['release_id']}",
         f"{SOURCE_META_KEYS['detanup'][1]}: {upstream_info['detanup']['asset_id']}",
         f"{SOURCE_META_KEYS['alex'][0]}: {upstream_info['alex']['release_id']}",
         f"{SOURCE_META_KEYS['alex'][1]}: {upstream_info['alex']['asset_id']}",
-        "",
-        "</details>",
+        "-->",
     ]
 
     return "\n\n---\n\n".join([detanup_section, alex_section]) + "\n\n" + "\n".join(meta_lines)
@@ -539,7 +527,7 @@ def cmd_repack(token: str, own_repo: str, force_repack: bool) -> None:
     changelog_changed = {
         key: upstream_changed[key] or force_repack for key in ("detanup", "alex")
     }
-    release_body = build_release_body(upstream_info, planned_assets, changelog_changed)
+    release_body = build_release_body(upstream_info, changelog_changed)
 
     write_output("release_tag", release_tag)
     write_output("release_name", release_name)
