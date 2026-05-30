@@ -91,6 +91,4 @@ jobs:
             echo "## Skipped"
             echo ""
             echo "- Reason: no Detanup01/alex47exe upstream updates"
-            echo ""
-            echo "To rebuild anyway, run this workflow manually with **force_repack** enabled."
           } >> "$GITHUB_STEP_SUMMARY"
