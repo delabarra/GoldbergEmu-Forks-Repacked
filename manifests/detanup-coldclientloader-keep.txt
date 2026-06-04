@@ -3,3 +3,4 @@
 # Optional download — may trigger antivirus heuristics.
 
 release/steamclient_experimental/
+release/steam_settings.EXAMPLE/
