@@ -9,6 +9,7 @@ import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 from pathlib import Path
 
 UPSTREAMS = {
@@ -140,10 +141,13 @@ def seven_zip_extract(archive_path: Path, output_dir: Path) -> None:
     subprocess.run(["7z", "x", "-y", f"-o{output_dir}", str(archive_path)], check=True)
 
 
-def seven_zip_pack(input_dir: Path, output_archive: Path) -> None:
+def zip_pack(input_dir: Path, output_archive: Path) -> None:
     if output_archive.exists():
         output_archive.unlink()
-    subprocess.run(["7z", "a", "-t7z", str(output_archive), "."], cwd=str(input_dir), check=True)
+    with zipfile.ZipFile(output_archive, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(input_dir.rglob("*")):
+            if path.is_file():
+                archive.write(path, path.relative_to(input_dir).as_posix())
 
 
 def get_upstream_release_info(token: str, repo: str, asset_name: str) -> dict:
@@ -179,20 +183,25 @@ def get_latest_own_release(token: str, repo: str) -> dict:
 
 
 def asset_name(prefix: str, tag: str, suffix: str) -> str:
-    return f"{prefix}-{tag}-{suffix}.7z"
+    return f"{prefix}-{tag}-{suffix}.zip"
 
 
 def find_asset_by_prefix(assets: list[dict], prefix: str, asset_suffix: str = "win") -> dict | None:
-    pattern = re.compile(rf"^{re.escape(prefix)}-(.+)-{re.escape(asset_suffix)}\.7z$")
+    zip_pattern = re.compile(rf"^{re.escape(prefix)}-(.+)-{re.escape(asset_suffix)}\.zip$")
+    legacy_pattern = re.compile(rf"^{re.escape(prefix)}-(.+)-{re.escape(asset_suffix)}\.7z$")
+    zip_match = None
+    legacy_match = None
     for asset in assets:
         name = asset.get("name", "")
-        if pattern.match(name):
-            return asset
-    return None
+        if zip_pattern.match(name):
+            zip_match = asset
+        elif legacy_pattern.match(name):
+            legacy_match = asset
+    return zip_match or legacy_match
 
 
 def extract_tag_from_name(name: str, prefix: str, asset_suffix: str = "win") -> str:
-    pattern = re.compile(rf"^{re.escape(prefix)}-(.+)-{re.escape(asset_suffix)}\.7z$")
+    pattern = re.compile(rf"^{re.escape(prefix)}-(.+)-{re.escape(asset_suffix)}\.(zip|7z)$")
     match = pattern.match(name)
     return match.group(1) if match else ""
 
@@ -296,7 +305,7 @@ def pack_filtered(
     suffix = cfg["asset_suffix"]
     new_name = asset_name(prefix, upstream_info["normalized_tag"], suffix)
     out_path = output_dir / new_name
-    seven_zip_pack(filtered_path, out_path)
+    zip_pack(filtered_path, out_path)
     return out_path
 
 
@@ -334,6 +343,20 @@ def carry_forward_asset(
     existing_url = existing_asset.get("browser_download_url", "")
     if not existing_url:
         fail(f"Missing download url for {existing_name}")
+
+    if existing_name.endswith(".7z"):
+        zip_name = f"{existing_name[:-3]}.zip"
+        out_path = output_dir / zip_name
+        print(f"{label}: unchanged, converting {existing_name} -> {zip_name}")
+        with tempfile.TemporaryDirectory() as temp_dir_str:
+            temp_dir = Path(temp_dir_str)
+            archive_path = temp_dir / existing_name
+            extracted_path = temp_dir / "extracted"
+            extracted_path.mkdir(parents=True, exist_ok=True)
+            download_file(existing_url, archive_path, token)
+            seven_zip_extract(archive_path, extracted_path)
+            zip_pack(extracted_path, out_path)
+        return out_path
 
     print(f"{label}: unchanged, carrying forward {existing_name}")
     out_path = output_dir / existing_name

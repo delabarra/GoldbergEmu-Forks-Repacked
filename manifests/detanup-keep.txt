@@ -1,4 +1,4 @@
-# Relative paths to keep from Detanup01 emu-win-release.7z
+# Relative paths to keep from Detanup01 emu-win-release.7z (upstream archive)
 # One path per line. Use / separators.
 # Omits ColdClientLoader (ColdClientLoader.ini, steamclient_loader_*.exe).
 

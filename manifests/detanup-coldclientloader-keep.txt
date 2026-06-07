@@ -1,4 +1,4 @@
-# ColdClientLoader bundle from Detanup01 emu-win-release.7z only.
+# ColdClientLoader bundle from Detanup01 emu-win-release.7z (upstream archive) only.
 # One path per line. Use / separators.
 # Optional download — may trigger antivirus heuristics.
 
